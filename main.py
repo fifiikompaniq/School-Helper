@@ -1,15 +1,21 @@
 from __future__ import print_function
 
 import os.path
+from ssl import cert_time_to_seconds
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from Events import Classroom
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/classroom.courses.readonly']
+SCOPES = ['https://www.googleapis.com/auth/classroom.courses.readonly',
+          'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
+          'https://www.googleapis.com/auth/calendar']
+
+
 
 
 def main():
@@ -35,19 +41,13 @@ def main():
             token.write(creds.to_json())
 
     try:
+        calendar = build('calendar', 'v3', credentials=creds)
         service = build('classroom', 'v1', credentials=creds)
+        classroom = Classroom(service)
+        classroom.list_courses()
+        classroom.list_assignments()
 
-        # Call the Classroom API
-        results = service.courses().list(pageSize=10).execute()
-        courses = results.get('courses', [])
-
-        if not courses:
-            print('No courses found.')
-            return
-        # Prints the names of the first 10 courses.
-        print('Courses:')
-        for course in courses:
-            print(course['name'])
+        
 
     except HttpError as error:
         print('An error occurred: %s' % error)
