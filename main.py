@@ -30,7 +30,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from Events import Calendar, Classroom
+from Events import Calendar, Classroom, Event
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/classroom.courses.readonly',
@@ -69,8 +69,9 @@ def main():
         calendar = Calendar(calendar_service, 'School Helper', creds=creds)
         
         classroom.list_courses()
-        calendar.create_calendar()
-
+        classroom.create_calendar_events()
+        calendar.sychronize_events()
+        
         
 
     except HttpError as error:

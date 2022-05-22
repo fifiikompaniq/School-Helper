@@ -1,3 +1,6 @@
+# Need to fix list_assignments().
+
+
 from datetime import datetime, date
 
 from google.auth.transport.requests import Request
@@ -103,32 +106,31 @@ class Classroom:
             print("There are no courses availble!")
             return
         elif len(self.courseIds) == 0: 
+            print("There are no ids. Creating ids now...")
             self.list_courses() 
         for id in self.courseIds: 
-                while True:
-                    coursework = service.courses().courseWork()
-                    response = coursework.list(pageToken=page_token,courseId=id, pageSize=10).execute()
-
-                    self.assignments.extend(response.get('courseWork', []))
-                    page_token = response.get('nextPageToken', None)
-                    if not page_token:
-                        break
-                if len(self.assignments) == 0:
-                    print('No assignments found.')
-                    return False
-                else:
-                    print('Assignemnts:')
-                for assignment in self.assignments:
-                    print(assignment.get('title'), assignment.get('dueDate'))
-                
-                return True;
+            while True:
+                coursework = service.courses().courseWork()
+                response = coursework.list(pageToken=page_token,courseId=id, pageSize=10).execute()
+                self.assignments.extend(response.get('courseWork', []))
+                page_token = response.get('nextPageToken', None)
+                if not page_token:
+                    break
+        if len(self.assignments) == 0:
+            print('No assignments found.')
+            return False
+        else:
+            print('Assignemnts:')
+            for assignment in self.assignments:
+                print(assignment.get('title'), assignment.get('dueDate'))
+            return True;
+            
     def create_calendar_events(self):
-        if not self.assignments: 
-            self.list_assignments()
-        else: 
-            for info in self.assignments: 
-                event = Event(title=info.get('title'),description=info.get('description'), date=info.get('dueDate'), time=info.get('dueTime'))
-                self.calendarUsage.append(event)
+        if len(self.assignments) == 0: 
+            self.list_assignments() 
+        for info in self.assignments: 
+            event = Event(title=info['title'],description=info['description'], date=info['dueDate'], time=info['dueTime'])
+            self.calendarUsage.append(event)
 
 
 class Calendar: 
@@ -136,27 +138,22 @@ class Calendar:
         self.service = service
         self.creds = creds
         self.name = name
-        self.id = 0
+        self.id = 0    
     
-    def create_calendar(self): # Creates a secondary calendar, only for the assignments
-        request_body = {
-            'summary': self.name
-        }
-        response = self.service.calendars().insert(body=request_body)
-        print('New calendar with name: {}'.format(self.name))
-        
-    
-    def add_event(self, event_info): # info should be a classroom assignment json file or dictionary. 
-        dueDate = event_info.get('date')
-        dueTime = event_info.get('time')
+    def add_event(self, event): # the event is an Event() object consisting of chunks of the orginal json classroom response
+        '''Adds event to Google Calendar'''
+        dueDate = event.date
+        dueTime = event.time
         event = {
-            'summary': event_info['title'],
-            'description': event_info['description'],
+            'summary': event.title,
+            'description': event.description,
             'start': {
                 'dateTime': '{}-{}-{}T'.format(dueDate['year'], dueDate['month'], dueDate['day']) + '00:00:00+02:00'
             },
             'end': {
-            '   dateTime': '{}-{}-{}T'.format(dueDate['year'], dueDate['month'], dueDate['day']) + '{}:{}:{}+02:00'.format(dueTime['hour'])
+                'dateTime': '{}-{}-{}T'.format(dueDate['year'], dueDate['month'], dueDate['day']) 
+                            + '{}:{}:00.0000'.format(dueTime['hours'], dueTime['minutes']),
+                'timeZone': 'GMT+03:00'
             },
             'attendees': [
                 {'email': EMAIL }
@@ -177,10 +174,11 @@ class Calendar:
     def sychronize_events(self): 
         classroom_service = build('classroom', 'v1', credentials=self.creds)
         classroom = Classroom(classroom_service, self.creds)
-        classroom.create_calendar_events()
-        dueDate = date()
+        classroom.create_calendar_events() 
         today = date.today()
         for event in classroom.calendarUsage: 
+            
+            dueDate = date(event['year'], event['month'], event['day'])
             if dueDate-today < 0: 
                 pass
             if dueDate-today > 2: 
