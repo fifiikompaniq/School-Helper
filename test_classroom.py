@@ -33,6 +33,23 @@ class TestClassroom(ut.TestCase):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
         service = build("classroom", 'v1', credentials=creds)
         classroom = Classroom(service, creds=creds)
+
+class TestCalendar(ut.TestCase): 
+    def test_get_events(self): 
+        pass
+    
+    def test_add_event(self): 
+        pass
+    
+    def test_synchronize_events(self): 
+        pass
+    
+    def test_update_file(self): 
+        pass
+    
+    def update_event_by_name(self):
+        pass
+    
         
 
 if __name__ == '__main__': 

@@ -63,10 +63,8 @@ def main():
             token.write(creds.to_json())
 
     try:
-        calendar_service = build('calendar', 'v3', credentials=creds)
-        classroom_service = build('classroom', 'v1', credentials=creds)
-        classroom = Classroom(classroom_service, creds=creds)
-        calendar = Calendar(calendar_service, 'School Helper', creds=creds)
+        classroom = Classroom(creds=creds)
+        calendar = Calendar('School Helper', creds=creds)
         
         classroom.list_courses()
         classroom.create_calendar_events()
