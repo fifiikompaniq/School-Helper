@@ -1,7 +1,8 @@
 # School Helper
  Using the mail of a user, take assignments from Google Classroom and put them in Google Calendar.
- The whole information comes from emails, sent by specific people, and by specifying the emails or names the program to track 
- we are able to take out enough information to add a title, description, due date and etc. to our calendar. 
+ The whole information comes from the Google Classroom API and is retrieved by the Google Calendar API. 
 
 # Features
- In the future, the program should be a bit more automatized and featuring auto-saving materials, keeping track of whether and assignment is done and therefore, removing   it from a to-do list, a more user-friendly GUI and etc.
+ It doesn't work yet, but each assignments receive a priority which changes between days.
+ 
+ # The program is unusable right now without a test email.
