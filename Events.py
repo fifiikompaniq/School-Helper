@@ -42,9 +42,9 @@ class Event:
                 self.priority = 4 # Not urgent
         
 class Classroom: 
-    def __init__(self, service, creds): 
-        self.service = service
-        self.creds = creds 
+    def __init__(self, service, creds):
+        self.creds = creds  
+        self.service = build('calendar', 'v3', credentials=self.creds)
         self.courses = []
         self.assignments = []
         self.courseIds = []
@@ -145,21 +145,27 @@ class Classroom:
 
 
 class Calendar: 
-    def __init__(self, service, name, creds):
-        self.service = service
+    def __init__(self, name, creds):
         self.creds = creds
+        self.service = build('calendar', 'v3', credentials=self.creds)
         self.name = name
-        self.id = 0    
+        self.eventIds = [] 
+           
+    def get_events(self):
+        now = datetime.utcnow().isoformat() + 'Z'
+        events_result = self.service.events().list(calendarId='primary', timeMin=now,
+                                               maxResults=500, singleEvents=True,
+                                               orderBy='startTime').execute()
+        self.eventIds = events_result.get('id', [])
     
     def add_event(self, event_info): # the event is an Event() object consisting of chunks of the orginal json classroom response
         '''Adds event to Google Calendar'''
-        colorIds = (11, 4, 5, 7) # Those are colorIds for the Google API
+        colorIds = (11, 4, 7, 5) # Those are colorIds for the Google API
         dueDate = event_info.date
         dueTime = event_info.time
         event = {
             'summary': event_info.title,
             'description': event_info.description,
-            'colorId': "2",
             'start': {
                 'dateTime': '{}-{}-{}T'.format(dueDate['year'], dueDate['month'], dueDate['day']) + '00:00:00+02:00'
             },
@@ -181,22 +187,51 @@ class Calendar:
                 ],
             },
         }
-        event_info.set_priority(date(dueDate['year'], dueDate['month'], dueDate['day']))
-        if event_info.priority < 0: 
-            event['colorId'] == str(colorIds[0])
-        elif event_info.priority > 3: 
-            pass
-        else:
-            event['colorId'] == str(colorIds[event_info.priority])
-        event = self.service.events().insert(calendarId='primary', body=event).execute()
+        if not self.already_exists(event):
+            event_info.set_priority(date(dueDate['year'], dueDate['month'], dueDate['day'])) #colorIds don't work fsr
+            if event_info.priority < 0: 
+                event['colorId'] = str(colorIds[0])
+            elif event_info.priority > 3: 
+                event['colorId'] = '2'
+            else:
+                event['colorId'] = str(colorIds[event_info.priority])
+            event = self.service.events().insert(calendarId='primary', body=event).execute()
+            return True
+        else: 
+            print("The event already exists. Updating...") 
+            return False
+        
 
     
     def sychronize_events(self): 
         classroom_service = build('classroom', 'v1', credentials=self.creds)
         classroom = Classroom(classroom_service, self.creds)
         classroom.create_calendar_events() 
-        for event in classroom.calendarUsage: 
-            self.add_event(event_info=event)
+        id_counter = 0
+        for event in classroom.calendarUsage:
+            if not self.add_event(event): 
+                pass
+            else: 
+                print('Event added successfully')
+            
+    def already_exists(self, new_event):
+        events = self.get_date_events(new_event['start']['dateTime'], self.get_events())
+        event_list = [new_event['summary'] for new_event in events]
+        if new_event['summary'] not in event_list:
+            return False
+        else:
+            return True
+
+    def get_date_events(self, date, events):
+        lst = []
+        date = date
+        for event in events:
+            if event.get('start').get('dateTime'):
+                d1 = event['start']['dateTime']
+            if d1 == date:
+                lst.append(event)
+        return lst
+         
             
 
 
