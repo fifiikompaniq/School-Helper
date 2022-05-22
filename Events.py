@@ -24,11 +24,22 @@ class Event:
         self.time = time
         self.priority = 0
     
-    def set_priority(self): 
+    def set_priority(self, dueDate): 
+        
         if self.priority != 0: 
             return
         else: # if there's one day left till assignment due date, prio goes on 3, if 2 days -> 2 else 1
-            pass
+            today = date.today()
+            if dueDate < today: 
+                self.priority = -1
+            elif dueDate - today == 0: 
+                self.priority = 1 # It's really urgent
+            elif dueDate - today == 1: 
+                self.priority = 2 # It's getting close
+            elif dueDate - today == 2: 
+                self.priority = 3 # You should start doing it
+            else: 
+                self.priority = 4 # Not urgent
         
 class Classroom: 
     def __init__(self, service, creds): 
@@ -102,10 +113,10 @@ class Classroom:
         """ Lists all the assignments available """
         service = self.service
         page_token = None
-        if len(self.courses) == 0: 
-            print("There are no courses availble!")
-            return
-        elif len(self.courseIds) == 0: 
+        if len(self.courses) == 0:
+            print("Can't find courses. Finding courses now...") 
+            self.list_courses()
+        if len(self.courseIds) == 0: 
             print("There are no ids. Creating ids now...")
             self.list_courses() 
         for id in self.courseIds: 
@@ -140,13 +151,15 @@ class Calendar:
         self.name = name
         self.id = 0    
     
-    def add_event(self, event): # the event is an Event() object consisting of chunks of the orginal json classroom response
+    def add_event(self, event_info): # the event is an Event() object consisting of chunks of the orginal json classroom response
         '''Adds event to Google Calendar'''
-        dueDate = event.date
-        dueTime = event.time
+        colorIds = (11, 4, 5, 7) # Those are colorIds for the Google API
+        dueDate = event_info.date
+        dueTime = event_info.time
         event = {
-            'summary': event.title,
-            'description': event.description,
+            'summary': event_info.title,
+            'description': event_info.description,
+            'colorId': "2",
             'start': {
                 'dateTime': '{}-{}-{}T'.format(dueDate['year'], dueDate['month'], dueDate['day']) + '00:00:00+02:00'
             },
@@ -168,6 +181,13 @@ class Calendar:
                 ],
             },
         }
+        event_info.set_priority(date(dueDate['year'], dueDate['month'], dueDate['day']))
+        if event_info.priority < 0: 
+            event['colorId'] == str(colorIds[0])
+        elif event_info.priority > 3: 
+            pass
+        else:
+            event['colorId'] == str(colorIds[event_info.priority])
         event = self.service.events().insert(calendarId='primary', body=event).execute()
 
     
@@ -175,22 +195,8 @@ class Calendar:
         classroom_service = build('classroom', 'v1', credentials=self.creds)
         classroom = Classroom(classroom_service, self.creds)
         classroom.create_calendar_events() 
-        today = date.today()
         for event in classroom.calendarUsage: 
-            
-            dueDate = date(event['year'], event['month'], event['day'])
-            if dueDate-today < 0: 
-                pass
-            if dueDate-today > 2: 
-                event.set_priority(1)
-                self.add_event(event)
-            elif dueDate-today == 1:
-                event.set_priority(2)
-                self.add_event(event)
-            else: 
-                event.set_priority(3)
-                self.add_event(event)
-        
+            self.add_event(event_info=event)
             
 
 
