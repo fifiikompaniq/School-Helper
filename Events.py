@@ -148,19 +148,21 @@ class Calendar:
         self.name = name
         self.eventIds = [] 
         self.event_names = []
+        self.counter = 0
            
     def get_events(self):
         events_result = self.service.events().list(calendarId='primary',
                                                maxResults=500, singleEvents=True,
                                                orderBy='startTime').execute()
-        ''' 
-      result = events_result.get('items', [])
+        result = events_result.get('items', [])
         for event in result: 
-            if event['summary'] not in self.event_names:
-                self.event_names.append(event['summary'])
+            if self.counter == 0:
+                self.update_file(event['summary'])  
             else: 
                 pass   
-        '''
+        self.counter+=1
+        with open("times_entered.txt", "w+") as fp: 
+            fp.write(str(self.counter))
         return events_result.get('items', [])
     
     def add_event(self, event_info): # the event is an Event() object consisting of chunks of the orginal json classroom response
@@ -213,7 +215,8 @@ class Calendar:
         
 
     
-    def sychronize_events(self): 
+    def sychronize_events(self):
+        self.get_events() 
         classroom_service = build('classroom', 'v1', credentials=self.creds)
         classroom = Classroom(self.creds)
         classroom.create_calendar_events() 
