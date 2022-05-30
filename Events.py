@@ -15,7 +15,6 @@ SCOPES = ['https://www.googleapis.com/auth/classroom.courses.readonly',
           'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
           'https://www.googleapis.com/auth/calendar']
 EMAIL = 'studentdemo767@gmail.com'
-PASSWORD = 'MyNameIsJeff99'
 class Event: 
     def __init__(self, title, description, date = 0, time = 0):
         self.title = title
@@ -165,8 +164,10 @@ class Calendar:
             fp.write(str(self.counter))
         return events_result.get('items', [])
     
-    def add_event(self, event_info): # the event is an Event() object consisting of chunks of the orginal json classroom response
-        '''Adds event to Google Calendar'''
+    def add_event(self, event_info, event_coef): 
+        # the event is an Event() object consisting of chunks of the orginal json classroom response
+        # the event_coef determines whether it needs to be updated or not.
+        '''Adds event to Google Calendar''' 
         event_names = []
         with open("events.txt", 'r') as fp: 
             event_names = fp.readlines()
@@ -226,32 +227,17 @@ class Calendar:
             else: 
                 print('Event added successfully')
                 self.update_file(event.title)
-            
-    def update_file(self, name): 
-        with open('events.txt', 'a') as file_events:
-            file_events.write(name)
-                
-    def update_event_by_name(self, name):
+
+    def event_exist(self, event):
         with open("events.txt", 'r') as fp: 
             content = fp.read()
             content.split('\n')
-        events_list = self.get_events()
-        for event in events_list: 
-            if event['summary'] == name: 
-                today = date.today()
-                due = datetime.fromisoformat(event['start']['dateTime']).date()
-                if due < today: 
-                    event['colorId'] = '11'
-                elif due - today == 0: 
-                    event['colorId'] = '4' # It's really urgent
-                elif due - today == 1: 
-                    event['colorId'] = '7' # It's getting close
-                elif due - today == 2: 
-                    event['colorId'] = '5' # You should start doing it
-                else: 
-                    event['colorId'] = '2' # Not urgent
-                
+        if event.name in content:
+            return True
+        else:
+            False
 
+        
                 
                 
                 
