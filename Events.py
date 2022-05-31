@@ -15,27 +15,6 @@ SCOPES = ['https://www.googleapis.com/auth/classroom.courses.readonly',
           'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
           'https://www.googleapis.com/auth/calendar']
 EMAIL = 'studentdemo767@gmail.com'
-class Event: 
-    def __init__(self, title, description, date = 0, time = 0):
-        self.title = title
-        self.description = description
-        self.date = date
-        self.time = time
-        self.priority = 0
-    
-    def set_priority(self, dueDate): # if there's one day left till assignment due date, prio goes on 3, if 2 days -> 2 else 1
-        
-        today = date.today()
-        if dueDate < today: 
-            self.priority = -1
-        elif dueDate - today == 0: 
-            self.priority = 1 # It's really urgent
-        elif dueDate - today == 1: 
-            self.priority = 2 # It's getting close
-        elif dueDate - today == 2: 
-            self.priority = 3 # You should start doing it
-        else: 
-            self.priority = 4 # Not urgent
         
 class Classroom: 
     
@@ -130,15 +109,7 @@ class Classroom:
             print('Assignemnts:')
             for assignment in self.assignments:
                 print(assignment.get('title'), assignment.get('dueDate'))
-            return True;
-            
-    def create_calendar_events(self):
-        if len(self.assignments) == 0: 
-            self.list_assignments() 
-        for info in self.assignments: 
-            event = Event(title=info['title'],description=info['description'], date=info['dueDate'], time=info['dueTime'])
-            self.calendarUsage.append(event)
-
+            return self.assignments
 
 class Calendar: 
     def __init__(self, name, creds):
@@ -153,13 +124,6 @@ class Calendar:
         events_result = self.service.events().list(calendarId='primary',
                                                maxResults=500, singleEvents=True,
                                                orderBy='startTime').execute()
-        result = events_result.get('items', [])
-        for event in result: 
-            if self.counter == 0:
-                self.update_file(event['summary'])  
-            else: 
-                pass   
-        self.counter+=1
         with open("times_entered.txt", "w+") as fp: 
             fp.write(str(self.counter))
         return events_result.get('items', [])
@@ -167,17 +131,38 @@ class Calendar:
     def add_event(self, event_info, event_coef): 
         # the event is an Event() object consisting of chunks of the orginal json classroom response
         # the event_coef determines whether it needs to be updated or not.
-        '''Adds event to Google Calendar''' 
-        event_names = []
-        with open("events.txt", 'r') as fp: 
-            event_names = fp.readlines()
-            
-        colorIds = (11, 4, 7, 5) # Those are colorIds for the Google API
-        dueDate = event_info.date
-        dueTime = event_info.time
-        event = {
-            'summary': event_info.title,
-            'description': event_info.description,
+        '''Adds event to Google Calendar'''
+        
+        dueTime = event_info['dueTime']
+        dueDate = event_info['dueDate']
+        if event_coef:
+            today = date.today()
+            dueDate = date(year=event_info['dueDate']['year'], month=event_info['dueDate']['month'], day=event_info['dueDate']['day']) 
+            print("The event already exists. Updating...")
+            existing = self.get_events()
+            for event in existing: 
+                if event['summary'] == event_info['title']: 
+                    eventId = event['id']
+                    event = self.service.events().get(calendarId='primary', eventId=eventId).execute()
+                    # [Changes start here]
+                    if dueDate - today == 1 or dueDate - today == 0: 
+                        event_info['colorId'] = '4'
+                    elif dueDate - today == 2: 
+                        event_info['colorId'] = '5'
+                    elif dueDate - today == 3: 
+                        event_info['colorId'] = '6'
+                    elif dueDate < today:
+                        event_info['colorId'] = '11'
+                    else:
+                        event_info['colorId'] = '8'
+                    # [Changes end here]
+                    updated_event = self.service.events().update(calendarId='primary', eventId=eventId, body=event).execute()
+                else: 
+                    pass
+        else:
+            event = {
+            'summary': event_info['title'],
+            'description': event_info['description'],
             'start': {
                 'dateTime': '{}-{}-{}T'.format(dueDate['year'], dueDate['month'], dueDate['day']) + '00:00:00+02:00'
             },
@@ -199,43 +184,37 @@ class Calendar:
                 ],
             },
         }
-        if event['summary'] not in event_names:
-            event_info.set_priority(date(dueDate['year'], dueDate['month'], dueDate['day'])) #colorIds don't work fsr
-            if event_info.priority < 0: 
-                event['colorId'] = str(colorIds[0])
-            elif event_info.priority > 3: 
-                event['colorId'] = '2'
-            else:
-                event['colorId'] = str(colorIds[event_info.priority])
-            event = self.service.events().insert(calendarId='primary', body=event).execute()
-            return True
-        else: 
-            print("The event already exists. Updating...")
-            self.update_event_by_name(event['summary'])
-            return False
+        today = date.today()
+        dueDate = date(year=event_info['dueDate']['year'], month=event_info['dueDate']['month'], day=event_info['dueDate']['day'])
+        if dueDate - today == 1 or dueDate - today == 0:             
+            event_info['colorId'] = '4'
+        elif dueDate - today == 2: 
+            event_info['colorId'] = '5'
+        elif dueDate - today == 3: 
+            event_info['colorId'] = '6'
+        elif dueDate < today:
+            event_info['colorId'] = '11'
+        else:
+            event_info['colorId'] = '8'
+        event = self.service.events().insert(calendarId='primary', body=event).execute()
+
         
 
     
     def sychronize_events(self):
-        self.get_events() 
-        classroom_service = build('classroom', 'v1', credentials=self.creds)
-        classroom = Classroom(self.creds)
-        classroom.create_calendar_events() 
-        for event in classroom.calendarUsage:
-            if self.add_event(event) == False: 
-                pass
-            else: 
-                print('Event added successfully')
-                self.update_file(event.title)
-
-    def event_exist(self, event):
-        with open("events.txt", 'r') as fp: 
-            content = fp.read()
-            content.split('\n')
-        if event.name in content:
-            return True
-        else:
-            False
+        classroom = Classroom(creds=self.creds)
+        events = classroom.list_assignments()
+        for event in events: 
+            self.add_event(event, self.generate_event_coefficient(event))
+        
+            
+    def generate_event_coefficient(self, event):
+        event_list = self.get_events()
+        for i in event_list:
+            if i['summary'] == event['title']: 
+                return True
+        return False 
+            
 
         
                 
