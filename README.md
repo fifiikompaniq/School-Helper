@@ -3,6 +3,7 @@
  The whole information comes from the Google Classroom API and is retrieved by the Google Calendar API. 
 
 # Features
- It doesn't work yet, but each assignments receive a priority which changes between days.
+    Each assignment receives a priority point, which changes between days.
+    If added to a Task Scheduler, It'll update anytime.
  
  # The program is unusable right now without a test email.
